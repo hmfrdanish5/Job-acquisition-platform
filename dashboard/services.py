@@ -183,3 +183,50 @@ class DashboardService:
         if not jobs:
             return [], "No jobs match the current filters."
         return jobs, None
+
+    def list_targets(self) -> list[dict]:
+        from sources.registry import select_source
+        from targets import load_targets, targets_config_path
+
+        items = []
+        for t in load_targets(enabled_only=False):
+            items.append(
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "url": t.url,
+                    "company": t.company,
+                    "enabled": t.enabled,
+                    "keywords": t.keywords,
+                    "notes": t.notes,
+                    "adapter": select_source(t.url).name,
+                    "error": t.validation_error(),
+                }
+            )
+        return items
+
+    def targets_path(self) -> str:
+        from targets import targets_config_path
+
+        return str(targets_config_path())
+
+    def collect_target(self, target_id: str) -> dict:
+        from pipeline import collect_target
+
+        if not self.ready:
+            self.initialize()
+        return collect_target(
+            target_id,
+            store=self.store if self.ready else None,
+            write_export=False,
+        )
+
+    def collect_all_targets(self) -> dict:
+        from pipeline import collect_all
+
+        if not self.ready:
+            self.initialize()
+        return collect_all(
+            store=self.store if self.ready else None,
+            write_export=False,
+        )

@@ -5,10 +5,11 @@ SQLite schema and low-level persistence for the job acquisition platform.
 
 Tables
 ──────
-  sources     — acquisition adapters (Indeed today; others later)
-  scrape_runs — one row per operator scrape session
-  jobs        — canonical deduplicated job records per source
-  run_jobs    — jobs observed in a given run (new vs seen flags)
+  sources     — catalog / adapter labels (historical indeed_in + careers)
+  scrape_runs — one row per collection; adapter_kind + target_key from schema v3
+  jobs        — canonical listings per (source_id, dedupe_key)
+  run_jobs    — jobs observed in a given run
+  csv_imports — imported file fingerprints
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from config import DATABASE
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 REQUIRED_TABLES = (
     "schema_meta",
@@ -62,6 +63,8 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
     new_count      INTEGER DEFAULT 0,
     exported_count INTEGER DEFAULT 0,
     notes          TEXT,
+    target_key     TEXT,
+    adapter_kind   TEXT,
     FOREIGN KEY (source_id) REFERENCES sources(id)
 );
 
@@ -197,6 +200,8 @@ class Database:
             self._add_column_if_missing(
                 conn, "scrape_runs", "pages_completed", "INTEGER DEFAULT 0"
             )
+            self._add_column_if_missing(conn, "scrape_runs", "target_key", "TEXT")
+            self._add_column_if_missing(conn, "scrape_runs", "adapter_kind", "TEXT")
 
             conn.execute(
                 """

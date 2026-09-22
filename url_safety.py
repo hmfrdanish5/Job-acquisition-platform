@@ -1,17 +1,32 @@
-"""Reject private/internal URLs before fetching user-supplied career pages."""
+"""Reject private/internal URLs before any HTTP or browser navigation."""
 
 from __future__ import annotations
 
 import ipaddress
+import logging
 import socket
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+
+logger = logging.getLogger(__name__)
 
 _BLOCKED_HOSTS = {"localhost", "localhost.localdomain"}
 
 
-def is_safe_public_url(url: str) -> tuple[bool, str]:
+def _resolve_host(host: str) -> list[str]:
+    try:
+        ipaddress.ip_address(host)
+        return [host]
+    except ValueError:
+        pass
+    infos = socket.getaddrinfo(host, None)
+    return list({item[4][0] for item in infos})
+
+
+def is_safe_public_url(url: str, *, resolve_host=_resolve_host) -> tuple[bool, str]:
     """
     Return (ok, reason). Only http(s) URLs with a public hostname are allowed.
+
+    resolve_host(host) -> list[str] is injectable for tests.
     """
     raw = (url or "").strip()
     if not raw:
@@ -29,16 +44,19 @@ def is_safe_public_url(url: str) -> tuple[bool, str]:
     if host.lower() in _BLOCKED_HOSTS:
         return False, "Local addresses are not allowed."
 
-    addresses: list[str] = []
     try:
         ipaddress.ip_address(host)
-        addresses.append(host)
+        addresses = [host]
     except ValueError:
         try:
-            infos = socket.getaddrinfo(host, None)
-            addresses = list({item[4][0] for item in infos})
+            addresses = resolve_host(host)
         except socket.gaierror:
             return False, "Could not resolve that hostname."
+        except OSError as exc:
+            return False, f"Could not resolve that hostname ({exc})."
+
+    if not addresses:
+        return False, "Could not resolve that hostname."
 
     for addr in addresses:
         try:
@@ -55,3 +73,16 @@ def is_safe_public_url(url: str) -> tuple[bool, str]:
             return False, "Private or local network addresses are not allowed."
 
     return True, ""
+
+
+def join_and_validate(base_url: str, href: str, *, resolve_host=_resolve_host) -> tuple[str | None, str]:
+    """Resolve a possibly relative href against base_url, then apply URL safety."""
+    href = (href or "").strip()
+    if not href:
+        return None, "Empty link."
+    absolute = urljoin(base_url, href)
+    ok, reason = is_safe_public_url(absolute, resolve_host=resolve_host)
+    if not ok:
+        logger.warning("[URL] Skipping unsafe navigation target %s (%s)", absolute, reason)
+        return None, reason
+    return absolute, ""

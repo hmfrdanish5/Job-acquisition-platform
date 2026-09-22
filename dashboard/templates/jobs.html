@@ -1,87 +1,239 @@
 {% extends "base.html" %}
 {% block title %}Jobs{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div>
-    <h1 class="page-title">Jobs</h1>
-    <p class="page-desc">
-      {% if run_id %}This collection: {{ total }} listing(s)
-      {% else %}{{ total }} saved listing(s)
+<section class="archive-page">
+  <div class="archive-top">
+    <div>
+      <p class="query-label tabular">QUERY // ARCHIVE_ENGINE_V4</p>
+      <h1 class="page-headline">Job repository</h1>
+    </div>
+    <div class="archive-status tabular">
+      <span>STATUS: SYNCHRONIZED</span>
+      <span class="archive-count">{{ total }} OPENINGS ACTIVE</span>
+    </div>
+  </div>
+
+  <div class="query-panel">
+    <form class="query-form" method="get" action="{{ url_for('dashboard.jobs') }}">
+      {% if run_id %}
+      <input type="hidden" name="run" value="{{ run_id }}">
       {% endif %}
-    </p>
+      <div class="query-field">
+        <label for="q">Role or title</label>
+        <input type="search" id="q" name="q" value="{{ q }}" placeholder="e.g. engineer, architect, intern">
+      </div>
+      <div class="query-field">
+        <label for="company">Company</label>
+        <select id="company" name="company">
+          <option value="">All companies</option>
+          {% for c in companies %}
+          <option value="{{ c }}" {% if company == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="query-submit">
+        <button type="submit" class="btn">Run query</button>
+      </div>
+    </form>
+    <div class="query-toolbar">
+      <div class="toolbar-left">
+        {% if run_id %}
+        <span class="toolbar-label">Filter:</span>
+        <span class="toolbar-chip is-active tabular">RUN #{{ run_id }}</span>
+        <a class="toolbar-chip" href="{{ url_for('dashboard.jobs', q=q, company=company) }}">Clear run</a>
+        {% endif %}
+        {% if q or company %}
+        <a class="toolbar-chip" href="{{ url_for('dashboard.jobs', run=run_id) }}">Clear search</a>
+        {% endif %}
+      </div>
+      <div class="toolbar-right tabular">
+        {% if jobs %}
+        <form method="post" action="{{ url_for('dashboard.export', q=q, company=company, run=run_id) }}" class="inline-form">
+          <button type="submit" class="btn-link">Download CSV</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
   </div>
-  {% if jobs %}
-  <form method="post" action="{{ url_for('dashboard.export', q=q, company=company, run=run_id) }}">
-    <button type="submit" class="btn">Download CSV</button>
-  </form>
-  {% endif %}
-</div>
 
-<div class="panel">
-  <form class="filters" method="get" action="{{ url_for('dashboard.jobs') }}">
-    {% if run_id %}
-    <input type="hidden" name="run" value="{{ run_id }}">
-    {% endif %}
-    <label>
-      Search
-      <input type="search" name="q" value="{{ q }}" placeholder="title, company, location">
-    </label>
-    <label>
-      Company
-      <select name="company">
-        <option value="">All companies</option>
-        {% for c in companies %}
-        <option value="{{ c }}" {% if company == c %}selected{% endif %}>{{ c }}</option>
+  {% if jobs %}
+  <div class="split-console">
+    <div class="list-pane">
+      <div class="registry-head tabular">
+        <span>Role &amp; entity</span>
+        <span>Jurisdiction</span>
+        <span class="text-right">Compensation</span>
+      </div>
+      <div class="record-list" id="job-rows">
+        {% for j in jobs %}
+        <article
+          class="record-item{% if loop.first %} is-active{% endif %}"
+          data-index="{{ loop.index0 }}"
+          role="button"
+          tabindex="0"
+        >
+          <div class="record-grid">
+            <div class="record-primary">
+              <div class="record-title">{{ j.job_title or 'Untitled role' }}</div>
+              <div class="record-sub tabular">{{ j.company_name or 'Unknown company' }} // REF-{{ j.id }}</div>
+            </div>
+            <div class="record-location tabular">
+              <span>{{ j.job_location or '—' }}</span>
+            </div>
+            <div class="record-comp text-right tabular">
+              <span>{{ j.salary if j.salary and j.salary != 'N/A' else '—' }}</span>
+              <span class="record-sub">{{ j.posting_date or '—' }}</span>
+            </div>
+          </div>
+        </article>
         {% endfor %}
-      </select>
-    </label>
-    <button type="submit" class="btn">Apply</button>
-    <a href="{{ url_for('dashboard.jobs') }}" class="btn btn-secondary">All jobs</a>
-  </form>
-</div>
+      </div>
 
-<div class="panel table-wrap">
-  {% if jobs %}
-  <table>
-    <thead>
-      <tr>
-        <th>Title</th>
-        <th>Company</th>
-        <th>Location</th>
-        <th>Posted</th>
-        <th>Salary</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for j in jobs %}
-      <tr>
-        <td>{{ j.job_title or 'N/A' }}</td>
-        <td>{{ j.company_name or 'N/A' }}</td>
-        <td>{{ j.job_location or 'N/A' }}</td>
-        <td>{{ j.posting_date or 'N/A' }}</td>
-        <td>{{ j.salary or 'N/A' }}</td>
-        <td>
-          {% if j.job_url and j.job_url != 'N/A' %}
-          <a href="{{ j.job_url }}" target="_blank" rel="noopener noreferrer">Open</a>
+      {% if total_pages > 1 %}
+      <div class="pagination-bar tabular">
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        <div class="pagination-links">
+          {% if page > 1 %}
+          <a href="{{ url_for('dashboard.jobs', page=page-1, q=q, company=company, run=run_id) }}">Prev</a>
+          {% else %}
+          <span class="is-muted">Prev</span>
           {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+          <span class="current">[{{ page }}]</span>
+          {% if page < total_pages %}
+          <a href="{{ url_for('dashboard.jobs', page=page+1, q=q, company=company, run=run_id) }}">Next</a>
+          {% else %}
+          <span class="is-muted">Next</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
 
-  <div class="pagination">
-    <span class="muted">Page {{ page }} of {{ total_pages }}</span>
-    {% if page > 1 %}
-    <a class="btn btn-secondary" href="{{ url_for('dashboard.jobs', page=page-1, q=q, company=company, run=run_id) }}">Previous</a>
-    {% endif %}
-    {% if page < total_pages %}
-    <a class="btn btn-secondary" href="{{ url_for('dashboard.jobs', page=page+1, q=q, company=company, run=run_id) }}">Next</a>
-    {% endif %}
+    <aside class="detail-pane" id="job-detail-pane">
+      <div id="job-detail-content">
+        <div class="detail-meta-row tabular">
+          <span id="detail-id">ID: —</span>
+          <span id="detail-date">LOGGED: —</span>
+        </div>
+        <h2 class="detail-title" id="detail-title">—</h2>
+        <p class="detail-company tabular" id="detail-company">—</p>
+
+        <div class="detail-metrics tabular">
+          <div>
+            <span class="metric-label">Compensation</span>
+            <span class="metric-value" id="detail-salary">—</span>
+          </div>
+          <div>
+            <span class="metric-label">Jurisdiction</span>
+            <span class="metric-value" id="detail-location">—</span>
+          </div>
+          <div>
+            <span class="metric-label">Source</span>
+            <span class="metric-value" id="detail-source">—</span>
+          </div>
+          <div>
+            <span class="metric-label">Record ID</span>
+            <span class="metric-value" id="detail-record-id">—</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Listing context</h3>
+          <p id="detail-context">Select a role from the directory to inspect the full listing record.</p>
+        </div>
+
+        <div class="detail-actions">
+          <a class="btn btn-block" href="#" id="detail-apply-link" target="_blank" rel="noopener noreferrer">
+            Open listing →
+          </a>
+        </div>
+      </div>
+    </aside>
   </div>
+
+  <div class="stats-footer">
+    <div class="stats-grid">
+      <div class="stat-block">
+        <span class="label-sm">Index volume</span>
+        <p class="stat-value tabular">{{ total }} verified</p>
+        <p class="stat-note">Listings matching the current query.</p>
+      </div>
+      <div class="stat-block">
+        <span class="label-sm">Companies</span>
+        <p class="stat-value tabular">{{ companies|length }}</p>
+        <p class="stat-note">Distinct entities in the local index.</p>
+      </div>
+      <div class="stat-block">
+        <span class="label-sm">Page size</span>
+        <p class="stat-value tabular">{{ jobs|length }} rows</p>
+        <p class="stat-note">Records shown in the current page.</p>
+      </div>
+      <div class="stat-block">
+        <span class="label-sm">Archive pages</span>
+        <p class="stat-value tabular">{{ total_pages }}</p>
+        <p class="stat-note">Total paginated result sets.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" id="jobs-data">{{ jobs | tojson }}</script>
   {% else %}
-  <p class="empty">No jobs yet. Collect listings from a careers page to populate this table.</p>
+  <div class="empty-panel">
+    <p class="empty">No jobs yet. Collect listings from a careers page to populate the index.</p>
+    <a class="btn" href="{{ url_for('dashboard.home') }}">Go to collect</a>
+  </div>
   {% endif %}
-</div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if jobs %}
+<script>
+(function () {
+  const jobs = JSON.parse(document.getElementById("jobs-data").textContent);
+  const rows = document.querySelectorAll(".record-item");
+  const applyLink = document.getElementById("detail-apply-link");
+
+  function display(value) {
+    if (!value || value === "N/A") return "—";
+    return value;
+  }
+
+  function selectJob(index) {
+    const job = jobs[index];
+    if (!job) return;
+
+    rows.forEach((row, i) => row.classList.toggle("is-active", i === index));
+
+    document.getElementById("detail-id").textContent = "ID: REF-" + (job.id || index);
+    document.getElementById("detail-date").textContent = "LOGGED: " + display(job.posting_date).toUpperCase();
+    document.getElementById("detail-title").textContent = display(job.job_title);
+    document.getElementById("detail-company").textContent = display(job.company_name);
+    document.getElementById("detail-location").textContent = display(job.job_location);
+    document.getElementById("detail-salary").textContent = display(job.salary);
+    document.getElementById("detail-source").textContent = display(job.source);
+    document.getElementById("detail-record-id").textContent = String(job.id || index);
+    document.getElementById("detail-context").textContent =
+      "Collected listing for " + display(job.company_name) + ". Open the original posting to view the full description and apply.";
+
+    const url = job.job_url && job.job_url !== "N/A" ? job.job_url : null;
+    applyLink.href = url || "#";
+    applyLink.style.display = url ? "" : "none";
+  }
+
+  rows.forEach((row) => {
+    const index = parseInt(row.getAttribute("data-index"), 10);
+    row.addEventListener("click", () => selectJob(index));
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        selectJob(index);
+      }
+    });
+  });
+
+  if (jobs.length) selectJob(0);
+})();
+</script>
+{% endif %}
 {% endblock %}

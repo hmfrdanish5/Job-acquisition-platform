@@ -15,6 +15,11 @@ DATABASE = {
     "enabled": True,
 }
 
+TARGETS = {
+    "path": os.path.join("data", "targets.json"),
+    "example_path": "targets.example.json",
+}
+
 IMPORT = {
     "default_source": "careers",
 }

@@ -307,7 +307,7 @@ class TestFlaskApp(unittest.TestCase):
     def test_home_renders(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Collect job listings", response.data)
+        self.assertIn(b"Collect listings", response.data)
 
     def test_jobs_empty_state(self):
         response = self.client.get("/jobs")

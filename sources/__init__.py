@@ -1,18 +1,17 @@
-"""Acquisition adapters used for source naming."""
+"""Acquisition adapters. Pipeline depends on this package, not ATS internals."""
 
 from __future__ import annotations
 
+from sources.base import CollectionRequest, CollectionResult, JobSource
+from sources.errors import AcquisitionError
+from sources.registry import collect_from_url, list_adapters, select_source
 
-class CareerSource:
-    name = "careers"
-    display_name = "Company careers page"
-
-    def scrape(self, *args, **kwargs):
-        raise NotImplementedError("Use pipeline.collect_jobs() instead.")
-
-
-def get_default_source() -> CareerSource:
-    return CareerSource()
-
-
-__all__ = ["CareerSource", "get_default_source"]
+__all__ = [
+    "AcquisitionError",
+    "CollectionRequest",
+    "CollectionResult",
+    "JobSource",
+    "collect_from_url",
+    "list_adapters",
+    "select_source",
+]

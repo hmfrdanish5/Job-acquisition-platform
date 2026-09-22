@@ -21,8 +21,11 @@ def create_app() -> Flask:
         __name__,
         template_folder=str(Path(__file__).parent / "templates"),
         static_folder=str(Path(__file__).parent / "static"),
+        static_url_path="/static",
     )
     app.secret_key = os.environ.get("FLASK_SECRET", "job-acquisition-local")
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     app.register_blueprint(bp)
 
     @app.context_processor
@@ -37,8 +40,8 @@ def main() -> None:
     app = create_app()
     host = DASHBOARD["host"]
     port = DASHBOARD["port"]
-    print(f"\nJob Acquisition Platform\n  http://{host}:{port}\n")
-    app.run(host=host, port=port, debug=DASHBOARD["debug"])
+    print(f"\nJob Index\n  http://{host}:{port}\n")
+    app.run(host=host, port=port, debug=DASHBOARD["debug"], use_reloader=False)
 
 
 if __name__ == "__main__":

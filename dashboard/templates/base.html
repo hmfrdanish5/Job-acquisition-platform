@@ -3,33 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Collect jobs{% endblock %} — Job Acquisition</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <title>{% block title %}Index{% endblock %} — INDEX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f7f9fb; color: #191c1e; }
+    .site-header { position: fixed; top: 0; left: 0; right: 0; z-index: 50; height: 3.5rem; background: #f7f9fb; border-bottom: 1px solid #c6c6cb; }
+    .site-main { padding-top: 3.5rem; min-height: 100vh; }
+  </style>
+  <link rel="stylesheet" href="/static/styles.css?v=3">
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <header class="header">
-    <div class="header-inner">
-      <a class="brand" href="{{ url_for('dashboard.home') }}">
-        Job Acquisition
-        <span>Collect listings from a careers page</span>
-      </a>
-      <nav class="nav">
-        <a href="{{ url_for('dashboard.home') }}" {% if request.endpoint == 'dashboard.home' %}class="active"{% endif %}>Collect</a>
-        <a href="{{ url_for('dashboard.jobs') }}" {% if request.endpoint == 'dashboard.jobs' %}class="active"{% endif %}>Jobs</a>
-        <a href="{{ url_for('dashboard.history') }}" {% if request.endpoint == 'dashboard.history' %}class="active"{% endif %}>History</a>
-      </nav>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <div class="brand-group">
+        <a class="brand" href="{{ url_for('dashboard.home') }}">Index</a>
+        <nav class="site-nav">
+          <a href="{{ url_for('dashboard.home') }}" {% if request.endpoint == 'dashboard.home' %}class="active"{% endif %}>Collect</a>
+          <a href="{{ url_for('dashboard.jobs') }}" {% if request.endpoint == 'dashboard.jobs' %}class="active"{% endif %}>Jobs</a>
+          <a href="{{ url_for('dashboard.history') }}" {% if request.endpoint == 'dashboard.history' %}class="active"{% endif %}>History</a>
+          <a href="{{ url_for('dashboard.targets') }}" {% if request.endpoint == 'dashboard.targets' %}class="active"{% endif %}>Targets</a>
+        </nav>
+      </div>
+      <div class="header-meta tabular">SYS.2026 // PUBLIC ARCHIVE</div>
     </div>
   </header>
 
-  <main class="layout">
+  <main class="site-main">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
+        <div class="flash-stack">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
       {% endif %}
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <span class="footer-brand">Index</span>
+      <span class="footer-meta tabular">Direct recruitment registry</span>
+    </div>
+  </footer>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

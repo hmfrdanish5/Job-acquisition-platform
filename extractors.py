@@ -87,6 +87,14 @@ def detect_ats(url: str) -> tuple[str, str | None]:
         slug = parts[0] if parts else None
         return "ashby", slug
 
+    if "smartrecruiters.com" in host:
+        if "companies" in parts:
+            idx = parts.index("companies")
+            if idx + 1 < len(parts) and parts[idx + 1] not in {"postings"}:
+                return "smartrecruiters", parts[idx + 1]
+        slug = parts[0] if parts else None
+        return "smartrecruiters", slug
+
     return "html", None
 
 
@@ -160,6 +168,46 @@ def jobs_from_ashby_payload(payload: Any, company_hint: str = "") -> list[dict]:
             url=item.get("jobUrl") or item.get("applyUrl") or item.get("id"),
         )
         if parsed:
+            out.append(parsed)
+    return out
+
+
+def jobs_from_smartrecruiters_payload(payload: Any, company_hint: str = "") -> list[dict]:
+    rows: list[Any] = []
+    if isinstance(payload, dict):
+        rows = payload.get("content") or payload.get("postings") or []
+    elif isinstance(payload, list):
+        rows = payload
+    out: list[dict] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        loc = item.get("location") or {}
+        location = ""
+        if isinstance(loc, dict):
+            location = ", ".join(
+                str(part)
+                for part in (loc.get("city"), loc.get("region"), loc.get("country"))
+                if part
+            )
+        company = company_hint
+        org = item.get("company") or {}
+        if not company and isinstance(org, dict):
+            company = org.get("name") or ""
+        ref = item.get("ref") or item.get("applyUrl") or ""
+        posting_id = str(item.get("id") or "")
+        url = ref if isinstance(ref, str) and ref.startswith("http") else posting_id
+        parsed = _job(
+            title=item.get("name") or item.get("title"),
+            company=company,
+            location=location,
+            posted=item.get("releasedDate") or item.get("released") or "",
+            url=url,
+        )
+        if parsed:
+            posted = parsed["posting_date"]
+            if posted and "T" in posted:
+                parsed["posting_date"] = posted.split("T")[0]
             out.append(parsed)
     return out
 
@@ -304,7 +352,7 @@ def _looks_like_job_link(href: str, absolute: str) -> bool:
     lowered = f"{href} {absolute}".lower()
     return any(
         token in lowered
-        for token in ("gh_jid", "lever.co", "ashbyhq.com", "myworkdayjobs.com")
+        for token in ("gh_jid", "lever.co", "ashbyhq.com", "smartrecruiters.com", "myworkdayjobs.com")
     )
 
 

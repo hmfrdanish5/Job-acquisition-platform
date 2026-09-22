@@ -1,0 +1,13 @@
+{
+  "targets": [
+    {
+      "id": "stripe_greenhouse",
+      "name": "Stripe (Greenhouse)",
+      "url": "https://boards.greenhouse.io/stripe",
+      "company": "Stripe",
+      "enabled": false,
+      "keywords": "",
+      "notes": "Example target. Copy this file to data/targets.json and set enabled true."
+    }
+  ]
+}

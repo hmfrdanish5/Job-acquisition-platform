@@ -12,6 +12,9 @@ Usage:
   python ops_cli.py jobs [--limit N] [--new-only --run-id ID]
   python ops_cli.py recurring [--min-seen N]
   python ops_cli.py health
+  python ops_cli.py targets
+  python ops_cli.py collect TARGET_ID
+  python ops_cli.py collect-all
 """
 
 from __future__ import annotations
@@ -20,6 +23,8 @@ import argparse
 import sys
 
 from job_store import JobStore, resolve_source_name
+from pipeline import collect_all, collect_target
+from targets import load_targets, targets_config_path
 
 
 def _print_jobs(jobs: list[dict], title: str) -> None:
@@ -185,20 +190,26 @@ def _cmd_runs(store: JobStore, limit: int) -> int:
         return 0
 
     print(
-        f"\n{'ID':>4}  {'Source':<12}  {'Status':<10}  {'New':>4}  "
+        f"\n{'ID':>4}  {'Adapter':<16}  {'Status':<14}  {'New':>4}  "
         f"{'Pg':>5}  {'Sec':>6}  Started"
     )
-    print("-" * 78)
+    print("-" * 86)
     for r in runs:
         pages = f"{r.get('pages_completed', 0)}/{r.get('pages_attempted', 0)}"
         dur = r.get("duration_seconds")
         dur_s = f"{dur:>5.1f}" if dur is not None else "    -"
+        adapter = r.get("adapter_kind") or r["source"]
         print(
-            f"{r['id']:>4}  {r['source']:<12}  {r['status']:<10}  "
+            f"{r['id']:>4}  {adapter:<16}  {r['status']:<14}  "
             f"{r['new_count']:>4}  {pages:>5}  {dur_s}  {r['started_at']}"
         )
+        extra = []
+        if r.get("target_key"):
+            extra.append(f"target={r['target_key']}")
         if r.get("failure_reason"):
-            print(f"       fail: {r['failure_reason']}")
+            extra.append(f"fail={r['failure_reason']}")
+        if extra:
+            print("       " + "  ".join(extra))
     print()
     return 0
 
@@ -228,6 +239,61 @@ def _cmd_recurring(store: JobStore, min_seen: int, limit: int) -> int:
     return 0
 
 
+def _cmd_targets() -> int:
+    path = targets_config_path()
+    items = load_targets(enabled_only=False)
+    print(f"\n  Targets file: {path}")
+    if not items:
+        print("  (none configured)\n")
+        return 0
+    print(f"  {'ID':<24} {'On':<4} {'Name':<28} URL")
+    print("  " + "-" * 80)
+    for t in items:
+        flag = "yes" if t.enabled else "no"
+        print(f"  {t.id:<24} {flag:<4} {t.name[:28]:<28} {t.url}")
+        if t.keywords:
+            print(f"       keywords: {t.keywords}")
+    print()
+    return 0
+
+
+def _print_batch(summary: dict) -> int:
+    rows = summary.get("rows") or []
+    print(f"\n  {'Target':<28} {'Status':<14} {'Jobs':>6} {'New':>6}")
+    print("  " + "-" * 58)
+    for row in rows:
+        print(
+            f"  {str(row['target_name'])[:28]:<28} "
+            f"{str(row['status'] or ''):<14} "
+            f"{row['jobs']:>6} {row['new_count']:>6}"
+        )
+        if row.get("message") and row["status"] not in {"completed"}:
+            print(f"       {row['message']}")
+    print()
+    print("  Batch complete:")
+    print(f"    targets={summary['targets']}")
+    print(f"    skipped_disabled={summary['skipped_disabled']}")
+    print(f"    successful={summary['successful']}")
+    print(f"    empty={summary['empty']}")
+    print(f"    failed={summary['failed']}")
+    print(f"    new_jobs={summary['new_jobs']}")
+    print()
+    return 0 if summary["failed"] == 0 else 1
+
+
+def _cmd_collect(target_id: str) -> int:
+    result = collect_target(target_id, write_export=True)
+    print(f"\n  [{result.get('status')}] {result.get('message')}")
+    if result.get("run_id"):
+        print(f"  run_id={result['run_id']}  new={result.get('new_count', 0)}")
+    print()
+    return 0 if result.get("status") in {"completed", "export_failed", "empty"} else 1
+
+
+def _cmd_collect_all() -> int:
+    return _print_batch(collect_all(write_export=False))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Job platform operator utilities")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -235,6 +301,11 @@ def main() -> int:
     sub.add_parser("status", help="Quick platform summary")
     sub.add_parser("stats", help="Detailed database statistics")
     sub.add_parser("health", help="Operational validation (DB, schema, tables)")
+    sub.add_parser("targets", help="List configured acquisition targets")
+    sub.add_parser("collect-all", help="Collect every enabled target (sequential)")
+
+    p_collect = sub.add_parser("collect", help="Collect one target by id")
+    p_collect.add_argument("target_id")
 
     p_recent = sub.add_parser("recent", help="Most recently seen jobs")
     p_recent.add_argument("--limit", type=int, default=20)
@@ -281,6 +352,9 @@ def main() -> int:
         "runs": lambda: _cmd_runs(store, args.limit),
         "jobs": lambda: _cmd_jobs(store, args.limit, args.new_only, args.run_id),
         "recurring": lambda: _cmd_recurring(store, args.min_seen, args.limit),
+        "targets": lambda: _cmd_targets(),
+        "collect": lambda: _cmd_collect(args.target_id),
+        "collect-all": lambda: _cmd_collect_all(),
     }
     return commands[args.command]()
 

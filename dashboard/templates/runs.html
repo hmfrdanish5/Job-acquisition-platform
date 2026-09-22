@@ -1,37 +1,51 @@
 {% extends "base.html" %}
 {% block title %}History{% endblock %}
 {% block content %}
-<h1 class="page-title">History</h1>
-<p class="page-desc">{{ total }} collection run(s)</p>
+<section class="page-shell">
+  <div class="page-top">
+    <div>
+      <p class="query-label tabular">QUERY // RUN_REGISTRY</p>
+      <h1 class="page-headline">Collection history</h1>
+      <p class="page-subhead">{{ total }} acquisition run(s) logged in the registry.</p>
+    </div>
+    <div class="archive-status tabular">
+      <span class="archive-count">{{ total }} RUNS</span>
+    </div>
+  </div>
 
-<div class="panel table-wrap">
-  {% if runs %}
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Status</th>
-        <th>URL / query</th>
-        <th>New jobs</th>
-        <th>Started</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in runs %}
-      <tr>
-        <td>{{ r.id }}</td>
-        <td><span class="status-{{ r.status }}">{{ r.status }}</span></td>
-        <td class="mono">{{ r.location }}</td>
-        <td>{{ r.new_count or 0 }}</td>
-        <td class="mono">{{ r.started_at }}</td>
-        <td><a href="{{ url_for('dashboard.jobs', run=r.id) }}">View</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="empty">No collections yet.</p>
-  {% endif %}
-</div>
+  <div class="surface-panel table-wrap" style="padding:0">
+    {% if runs %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Adapter</th>
+          <th>Target</th>
+          <th>URL / query</th>
+          <th>New</th>
+          <th>Started</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td class="tabular">{{ r.id }}</td>
+          <td><span class="status-{{ r.status }}">{{ r.status }}</span></td>
+          <td class="tabular">{{ r.adapter_kind or r.source }}</td>
+          <td class="tabular">{{ r.target_key or "—" }}</td>
+          <td class="mono">{{ r.location }}</td>
+          <td class="tabular">{{ r.new_count or 0 }}</td>
+          <td class="mono tabular">{{ r.started_at }}</td>
+          <td><a href="{{ url_for('dashboard.jobs', run=r.id) }}">View jobs</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No collections yet. Run a collection from the Collect page.</p>
+    {% endif %}
+  </div>
+</section>
 {% endblock %}

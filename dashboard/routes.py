@@ -54,8 +54,9 @@ def home():
             company_name=form["company"],
             keyword=form["keyword"],
         )
-        if result["ok"]:
-            flash(result["message"], "success")
+        if result.get("jobs") or result.get("status") == "export_failed":
+            category = "success" if result.get("status") == "completed" else "warning"
+            flash(result["message"], category)
             return redirect(url_for("dashboard.jobs", run=result.get("run_id")))
 
         flash(result["message"], "error")
@@ -108,6 +109,36 @@ def history():
     if data.get("error"):
         return render_template("error.html", title="History", message=data["error"])
     return render_template("runs.html", runs=data["runs"], total=data["total"])
+
+
+@bp.route("/targets", methods=["GET", "POST"])
+def targets():
+    if not _ensure_db():
+        return render_template("error.html", title="Targets", message=service.init_error)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "collect-all":
+            summary = service.collect_all_targets()
+            flash(
+                f"Batch finished: {summary['successful']} successful, "
+                f"{summary['failed']} failed, {summary['new_jobs']} new jobs.",
+                "success" if summary["failed"] == 0 else "warning",
+            )
+            return redirect(url_for("dashboard.history"))
+        target_id = request.form.get("target_id", "").strip()
+        result = service.collect_target(target_id)
+        if result.get("jobs") or result.get("status") in {"completed", "export_failed"}:
+            flash(result["message"], "success")
+            return redirect(url_for("dashboard.jobs", run=result.get("run_id")))
+        flash(result.get("message") or "Collection failed.", "error")
+        return redirect(url_for("dashboard.targets"))
+
+    return render_template(
+        "targets.html",
+        targets=service.list_targets(),
+        config_path=service.targets_path(),
+    )
 
 
 @bp.route("/export", methods=["GET", "POST"])

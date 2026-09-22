@@ -30,7 +30,11 @@ def main() -> None:
     )
     parser.add_argument("url", help="Careers / jobs page URL")
     parser.add_argument("--company", default="", help="Company name if the page omits it")
-    parser.add_argument("--keyword", default="", help="Keep listings that contain this text")
+    parser.add_argument(
+        "--keyword",
+        default="",
+        help="Comma-separated OR terms (title/location/company), e.g. engineer, intern",
+    )
     parser.add_argument(
         "--pages",
         type=int,

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Targets{% endblock %}
+{% block content %}
+<section class="page-shell">
+<div class="page-top">
+  <div>
+    <h1 class="page-headline">Acquisition targets</h1>
+    <p class="page-subhead">
+      Configured in <span class="mono">{{ config_path }}</span>.
+      Edit that JSON file to add targets — no code change required.
+    </p>
+  </div>
+  <div class="page-top-actions">
+    <span class="page-meta tabular">{{ targets|length }} configured</span>
+    <form method="post">
+      <input type="hidden" name="action" value="collect-all">
+      <button type="submit" class="btn">Collect enabled</button>
+    </form>
+  </div>
+</div>
+
+{% if targets %}
+<div class="split-console">
+  <div>
+    <div class="registry-head registry-head-4">
+      <span>Target &amp; URL</span>
+      <span>Adapter</span>
+      <span class="text-right">Status</span>
+      <span class="text-right">Keywords</span>
+    </div>
+    <div class="record-list" id="target-rows">
+      {% for t in targets %}
+      <article
+        class="record-item{% if loop.first %} is-active{% endif %}"
+        data-target-id="{{ t.id }}"
+        role="button"
+        tabindex="0"
+      >
+        <div class="record-grid record-grid-4">
+          <div class="min-w-0">
+            <div class="headline-sm truncate">{{ t.name }}</div>
+            <div class="record-meta mono truncate">{{ t.url }}</div>
+            {% if t.error %}<div class="flash flash-error" style="margin-top:4px">{{ t.error }}</div>{% endif %}
+          </div>
+          <div class="record-meta tabular">{{ t.adapter }}</div>
+          <div class="text-right">
+            {% if t.enabled %}
+            <span class="badge">Enabled</span>
+            {% else %}
+            <span class="badge badge-muted">Disabled</span>
+            {% endif %}
+          </div>
+          <div class="text-right record-meta tabular">{{ t.keywords or "—" }}</div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+
+  <aside class="detail-pane" id="target-detail-pane">
+    <div class="detail-meta-row tabular">
+      <span id="target-detail-id">ID: —</span>
+      <span id="target-detail-status">—</span>
+    </div>
+    <div class="detail-section" style="margin-top:0">
+      <span class="label-sm">Target dossier</span>
+      <h2 class="headline-md" id="target-detail-name" style="margin-top:var(--space-xs)">—</h2>
+    </div>
+
+    <div class="dossier-block">
+      <span class="label-sm">Acquisition URL</span>
+      <span class="mono" id="target-detail-url">—</span>
+    </div>
+    <div class="dossier-block">
+      <span class="label-sm">Company hint</span>
+      <span id="target-detail-company">—</span>
+    </div>
+    <div class="dossier-block">
+      <span class="label-sm">Adapter</span>
+      <span class="tabular" id="target-detail-adapter">—</span>
+    </div>
+    <div class="dossier-block">
+      <span class="label-sm">Keyword filter</span>
+      <span id="target-detail-keywords">—</span>
+    </div>
+    <div class="dossier-block">
+      <span class="label-sm">Notes</span>
+      <p id="target-detail-notes" style="margin:0;color:var(--on-surface-variant)">—</p>
+    </div>
+
+    <div class="detail-actions" id="target-collect-form" hidden>
+      <form method="post">
+        <input type="hidden" name="target_id" id="target-collect-id" value="">
+        <button type="submit" class="btn" style="width:100%">Collect this target →</button>
+      </form>
+    </div>
+  </aside>
+</div>
+
+<script type="application/json" id="targets-data">{{ targets | tojson }}</script>
+{% else %}
+<div class="surface-panel">
+  <p class="empty">No targets configured. Copy targets.example.json to data/targets.json.</p>
+</div>
+{% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if targets %}
+<script>
+(function () {
+  const targets = JSON.parse(document.getElementById("targets-data").textContent);
+  const byId = Object.fromEntries(targets.map((t) => [t.id, t]));
+  const rows = document.querySelectorAll(".record-item");
+  const collectForm = document.getElementById("target-collect-form");
+  const collectId = document.getElementById("target-collect-id");
+
+  function display(value) {
+    if (!value) return "—";
+    return value;
+  }
+
+  function selectTarget(id) {
+    const t = byId[id];
+    if (!t) return;
+
+    rows.forEach((row) => {
+      row.classList.toggle("is-active", row.getAttribute("data-target-id") === id);
+    });
+
+    document.getElementById("target-detail-id").textContent = "ID: " + t.id;
+    document.getElementById("target-detail-status").textContent = t.enabled ? "ENABLED" : "DISABLED";
+    document.getElementById("target-detail-name").textContent = t.name;
+    document.getElementById("target-detail-url").textContent = t.url;
+    document.getElementById("target-detail-company").textContent = display(t.company);
+    document.getElementById("target-detail-adapter").textContent = display(t.adapter);
+    document.getElementById("target-detail-keywords").textContent = display(t.keywords);
+    document.getElementById("target-detail-notes").textContent = display(t.notes);
+
+    if (t.enabled && !t.error) {
+      collectForm.hidden = false;
+      collectId.value = t.id;
+    } else {
+      collectForm.hidden = true;
+      collectId.value = "";
+    }
+  }
+
+  rows.forEach((row) => {
+    const id = row.getAttribute("data-target-id");
+    row.addEventListener("click", () => selectTarget(id));
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        selectTarget(id);
+      }
+    });
+  });
+
+  if (targets.length) selectTarget(targets[0].id);
+})();
+</script>
+{% endif %}
+{% endblock %}

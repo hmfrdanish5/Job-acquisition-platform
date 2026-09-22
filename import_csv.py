@@ -111,6 +111,7 @@ def import_csv_file(
             keyword="[csv_import]",
             location=str(path.name),
             max_pages=0,
+            adapter_kind="csv",
         )
         store.finish_run(
             run_id,
@@ -125,6 +126,7 @@ def import_csv_file(
         keyword="[csv_import]",
         location=str(path.name),
         max_pages=0,
+        adapter_kind="csv",
     )
 
     try:
@@ -138,7 +140,7 @@ def import_csv_file(
             raw_count=summary["rows_read"],
             unique_count=len(prepared),
             new_count=summary["imported"],
-            exported_count=summary["imported"],
+            exported_count=0,
             notes=f"csv:{path.name}",
         )
         store.record_csv_import(

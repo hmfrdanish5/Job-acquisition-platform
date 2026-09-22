@@ -19,12 +19,56 @@ logger = logging.getLogger(__name__)
 
 _NA = EXPORT["missing_value"]
 
+# Canonical job catalog. Live collections persist here so historical
+# careers rows keep matching on (source_id, dedupe_key). Adapter kind
+# is recorded on the scrape run, not by splitting the jobs table.
+JOB_CATALOG_SOURCE = "careers"
+
 # Operator-friendly source aliases
 SOURCE_ALIASES: dict[str, str] = {
     "careers": "careers",
     "career": "careers",
     "company": "careers",
+    "html": "careers",
+    "greenhouse": "greenhouse",
+    "lever": "lever",
+    "ashby": "ashby",
+    "smartrecruiters": "smartrecruiters",
+    "csv": "csv",
 }
+
+MERGE_FIELDS = (
+    "company_name",
+    "job_title",
+    "job_location",
+    "posting_date",
+    "salary",
+    "job_url",
+)
+
+
+def is_missing_value(value: Any) -> bool:
+    """True when a field carries no usable information."""
+    if value is None:
+        return True
+    text = str(value).strip()
+    return text == "" or text.upper() == _NA.upper()
+
+
+def choose_better_value(existing: Any, incoming: Any) -> Any:
+    """
+    Field merge policy (deterministic):
+
+    1. Incoming missing (None / blank / N/A) never overwrites a stored value.
+    2. Existing missing + incoming present => accept incoming.
+    3. Both present => incoming wins (latest observation).
+    4. Both missing => keep existing (do not invent a placeholder).
+    """
+    if is_missing_value(incoming):
+        return existing
+    if is_missing_value(existing):
+        return incoming
+    return incoming
 
 
 def resolve_source_name(name: str) -> str:
@@ -69,6 +113,8 @@ class JobStore:
         location: str,
         max_pages: int,
         display_name: str | None = None,
+        target_key: str | None = None,
+        adapter_kind: str | None = None,
     ) -> int:
         source_name = resolve_source_name(source_name)
         source_id = self.db.ensure_source(source_name, display_name)
@@ -78,13 +124,28 @@ class JobStore:
                 INSERT INTO scrape_runs (
                     source_id, keyword, location, max_pages,
                     started_at, status,
-                    pages_attempted, pages_completed
-                ) VALUES (?, ?, ?, ?, ?, 'running', 0, 0)
+                    pages_attempted, pages_completed,
+                    target_key, adapter_kind
+                ) VALUES (?, ?, ?, ?, ?, 'running', 0, 0, ?, ?)
                 """,
-                (source_id, keyword, location, max_pages, utc_now()),
+                (
+                    source_id,
+                    keyword,
+                    location,
+                    max_pages,
+                    utc_now(),
+                    target_key,
+                    adapter_kind,
+                ),
             )
             run_id = int(cur.lastrowid)
-        logger.info("[STORE] Started run id=%s source=%s", run_id, source_name)
+        logger.info(
+            "[STORE] Started run id=%s source=%s adapter=%s target=%s",
+            run_id,
+            source_name,
+            adapter_kind,
+            target_key,
+        )
         return run_id
 
     def finish_run(
@@ -178,7 +239,9 @@ class JobStore:
                 seen_in_batch.add(dedupe_key)
                 existing = conn.execute(
                     """
-                    SELECT id, times_seen FROM jobs
+                    SELECT id, times_seen, company_name, job_title, job_location,
+                           posting_date, salary, job_url
+                    FROM jobs
                     WHERE source_id = ? AND dedupe_key = ?
                     """,
                     (source_id, dedupe_key),
@@ -187,6 +250,10 @@ class JobStore:
                 if existing:
                     job_id = int(existing["id"])
                     times_seen = int(existing["times_seen"]) + 1
+                    merged = {
+                        field: choose_better_value(existing[field], job.get(field))
+                        for field in MERGE_FIELDS
+                    }
                     conn.execute(
                         """
                         UPDATE jobs
@@ -196,12 +263,12 @@ class JobStore:
                         WHERE id = ?
                         """,
                         (
-                            job.get("company_name"),
-                            job.get("job_title"),
-                            job.get("job_location"),
-                            job.get("posting_date"),
-                            job.get("salary"),
-                            job.get("job_url"),
+                            merged["company_name"],
+                            merged["job_title"],
+                            merged["job_location"],
+                            merged["posting_date"],
+                            merged["salary"],
+                            merged["job_url"],
                             now,
                             times_seen,
                             job_id,
@@ -373,7 +440,7 @@ class JobStore:
                 raw_count=summary["rows_read"],
                 unique_count=len(jobs),
                 new_count=summary["imported"],
-                exported_count=summary["imported"],
+                exported_count=0,
                 notes=f"csv import: {file_path}",
             )
         except Exception as exc:
@@ -426,7 +493,7 @@ class JobStore:
                        r.new_count, r.exported_count
                 FROM scrape_runs r
                 JOIN sources s ON s.id = r.source_id
-                ORDER BY r.started_at DESC
+                ORDER BY r.started_at DESC, r.id DESC
                 LIMIT 1
                 """
             ).fetchone()
@@ -451,10 +518,11 @@ class JobStore:
                        r.max_pages, r.status, r.started_at, r.finished_at,
                        r.duration_seconds, r.failure_reason,
                        r.pages_attempted, r.pages_completed,
-                       r.raw_count, r.unique_count, r.new_count, r.exported_count
+                       r.raw_count, r.unique_count, r.new_count, r.exported_count,
+                       r.target_key, r.adapter_kind
                 FROM scrape_runs r
                 JOIN sources s ON s.id = r.source_id
-                ORDER BY r.started_at DESC
+                ORDER BY r.started_at DESC, r.id DESC
                 LIMIT ?
                 """,
                 (limit,),

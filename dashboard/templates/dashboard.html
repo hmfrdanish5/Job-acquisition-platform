@@ -1,61 +1,94 @@
 {% extends "base.html" %}
-{% block title %}Collect jobs{% endblock %}
+{% block title %}Collect{% endblock %}
 {% block content %}
-<section class="hero">
-  <h1 class="page-title">Collect job listings</h1>
-  <p class="page-desc">
-    Paste a company careers URL. Results appear in the table and can be downloaded as CSV.
-    Pages behind Cloudflare or a “verify you are human” check cannot be collected.
-  </p>
+<section class="page-shell">
+  <div class="page-top">
+    <div>
+      <p class="query-label tabular">QUERY // COLLECTION_ENGINE</p>
+      <h1 class="page-headline">Collect listings</h1>
+      <p class="page-subhead">
+        Paste a company careers URL. Results are saved to the index and can be exported as CSV.
+        Pages behind Cloudflare or human-verification checks cannot be collected.
+      </p>
+    </div>
+    {% if summary and summary.jobs_total %}
+    <div class="archive-status tabular">
+      <span>STATUS: READY</span>
+      <span class="archive-count">{{ summary.jobs_total }} IN INDEX</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="surface-panel">
+    <form method="post" action="{{ url_for('dashboard.home') }}" class="form-stack">
+      <div class="field">
+        <label for="url">Careers page URL</label>
+        <input
+          type="url"
+          id="url"
+          name="url"
+          required
+          value="{{ form.url }}"
+          placeholder="https://jobs.lever.co/example"
+        >
+      </div>
+      <div class="form-row-2">
+        <div class="field">
+          <label for="company">Company name <span class="optional">optional</span></label>
+          <input type="text" id="company" name="company" value="{{ form.company }}" placeholder="Acme Inc.">
+        </div>
+        <div class="field">
+          <label for="keyword">Keyword filter <span class="optional">optional</span></label>
+          <input
+            type="text"
+            id="keyword"
+            name="keyword"
+            value="{{ form.keyword }}"
+            placeholder="engineer, intern, remote"
+          >
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">Run collection</button>
+      </div>
+    </form>
+    <p class="form-hint">
+      Collection can take 10–30 seconds. Keywords are comma-separated OR terms across title, location, and company.
+      Use a direct jobs or careers URL when possible.
+    </p>
+  </div>
+
+  {% if summary %}
+  <div class="stats-footer">
+    <div class="stats-grid">
+      <div class="stat-block">
+        <span class="label-sm">Saved jobs</span>
+        <p class="stat-value tabular">{{ summary.jobs_total or 0 }}</p>
+        <p class="stat-note">Total listings in the local index.</p>
+      </div>
+      <div class="stat-block">
+        <span class="label-sm">Collections</span>
+        <p class="stat-value tabular">{{ summary.runs_total or 0 }}</p>
+        <p class="stat-note">Completed acquisition runs logged.</p>
+      </div>
+      <div class="stat-block">
+        <span class="label-sm">Last run</span>
+        <p class="stat-value">
+          {% if summary.last_run_status %}
+            <span class="status-{{ summary.last_run_status }}">{{ summary.last_run_status }}</span>
+          {% else %}
+            —
+          {% endif %}
+        </p>
+        <p class="stat-note">Status of the most recent collection.</p>
+      </div>
+      <div class="stat-block">
+        <span class="label-sm">Browse index</span>
+        <p class="stat-value stat-link"><a href="{{ url_for('dashboard.jobs') }}">Open jobs →</a></p>
+        <p class="stat-note">View and export collected listings.</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </section>
-
-<div class="panel">
-  <form method="post" action="{{ url_for('dashboard.home') }}" class="collect-form">
-    <label>
-      Careers page URL
-      <input
-        type="url"
-        name="url"
-        required
-        value="{{ form.url }}"
-        placeholder="https://jobs.lever.co/example  or  https://company.com/careers"
-      >
-    </label>
-    <div class="form-row">
-      <label>
-        Company name <span class="optional">optional</span>
-        <input type="text" name="company" value="{{ form.company }}" placeholder="Acme Inc.">
-      </label>
-      <label>
-        Keyword filter <span class="optional">optional</span>
-        <input type="text" name="keyword" value="{{ form.keyword }}" placeholder="engineer, intern, remote">
-      </label>
-    </div>
-    <p class="form-hint">Collection can take 10–30 seconds. Use a jobs/careers URL, not the marketing homepage, when possible.</p>
-    <button type="submit" class="btn">Collect jobs</button>
-  </form>
-</div>
-
-{% if summary %}
-<div class="cards">
-  <div class="card">
-    <div class="card-value">{{ summary.jobs_total or 0 }}</div>
-    <div class="card-label">Saved jobs</div>
-  </div>
-  <div class="card">
-    <div class="card-value">{{ summary.runs_total or 0 }}</div>
-    <div class="card-label">Collections</div>
-  </div>
-  <div class="card">
-    <div class="card-value">
-      {% if summary.last_run_status %}
-        <span class="status-{{ summary.last_run_status }}">{{ summary.last_run_status }}</span>
-      {% else %}
-        —
-      {% endif %}
-    </div>
-    <div class="card-label">Last run</div>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
