@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Jobs{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Jobs</h1>
+    <p class="page-desc">
+      {% if run_id %}This collection: {{ total }} listing(s)
+      {% else %}{{ total }} saved listing(s)
+      {% endif %}
+    </p>
+  </div>
+  {% if jobs %}
+  <form method="post" action="{{ url_for('dashboard.export', q=q, company=company, run=run_id) }}">
+    <button type="submit" class="btn">Download CSV</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <form class="filters" method="get" action="{{ url_for('dashboard.jobs') }}">
+    {% if run_id %}
+    <input type="hidden" name="run" value="{{ run_id }}">
+    {% endif %}
+    <label>
+      Search
+      <input type="search" name="q" value="{{ q }}" placeholder="title, company, location">
+    </label>
+    <label>
+      Company
+      <select name="company">
+        <option value="">All companies</option>
+        {% for c in companies %}
+        <option value="{{ c }}" {% if company == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn">Apply</button>
+    <a href="{{ url_for('dashboard.jobs') }}" class="btn btn-secondary">All jobs</a>
+  </form>
+</div>
+
+<div class="panel table-wrap">
+  {% if jobs %}
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Company</th>
+        <th>Location</th>
+        <th>Posted</th>
+        <th>Salary</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for j in jobs %}
+      <tr>
+        <td>{{ j.job_title or 'N/A' }}</td>
+        <td>{{ j.company_name or 'N/A' }}</td>
+        <td>{{ j.job_location or 'N/A' }}</td>
+        <td>{{ j.posting_date or 'N/A' }}</td>
+        <td>{{ j.salary or 'N/A' }}</td>
+        <td>
+          {% if j.job_url and j.job_url != 'N/A' %}
+          <a href="{{ j.job_url }}" target="_blank" rel="noopener noreferrer">Open</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    <span class="muted">Page {{ page }} of {{ total_pages }}</span>
+    {% if page > 1 %}
+    <a class="btn btn-secondary" href="{{ url_for('dashboard.jobs', page=page-1, q=q, company=company, run=run_id) }}">Previous</a>
+    {% endif %}
+    {% if page < total_pages %}
+    <a class="btn btn-secondary" href="{{ url_for('dashboard.jobs', page=page+1, q=q, company=company, run=run_id) }}">Next</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="empty">No jobs yet. Collect listings from a careers page to populate this table.</p>
+  {% endif %}
+</div>
+{% endblock %}

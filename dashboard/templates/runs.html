@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<h1 class="page-title">History</h1>
+<p class="page-desc">{{ total }} collection run(s)</p>
+
+<div class="panel table-wrap">
+  {% if runs %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>URL / query</th>
+        <th>New jobs</th>
+        <th>Started</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in runs %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td><span class="status-{{ r.status }}">{{ r.status }}</span></td>
+        <td class="mono">{{ r.location }}</td>
+        <td>{{ r.new_count or 0 }}</td>
+        <td class="mono">{{ r.started_at }}</td>
+        <td><a href="{{ url_for('dashboard.jobs', run=r.id) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No collections yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

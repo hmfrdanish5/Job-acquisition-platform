@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Collect jobs{% endblock %} — Job Acquisition</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="{{ url_for('dashboard.home') }}">
+        Job Acquisition
+        <span>Collect listings from a careers page</span>
+      </a>
+      <nav class="nav">
+        <a href="{{ url_for('dashboard.home') }}" {% if request.endpoint == 'dashboard.home' %}class="active"{% endif %}>Collect</a>
+        <a href="{{ url_for('dashboard.jobs') }}" {% if request.endpoint == 'dashboard.jobs' %}class="active"{% endif %}>Jobs</a>
+        <a href="{{ url_for('dashboard.history') }}" {% if request.endpoint == 'dashboard.history' %}class="active"{% endif %}>History</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="layout">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

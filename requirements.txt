@@ -1,0 +1,14 @@
+# HTTP + HTML parsing
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.3.0
+
+# CSV export
+pandas==2.2.3
+
+# Web UI
+flask==3.0.3
+
+# Browser automation for JavaScript career pages
+# After install: python -m playwright install chromium
+playwright==1.44.0

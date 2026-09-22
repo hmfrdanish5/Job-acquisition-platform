@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.idea/
+.vscode/
+.env
+data/
+debug/
+jobs.csv
+*.log
+storage_state.json
+*.db
